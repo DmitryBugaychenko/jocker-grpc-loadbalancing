@@ -5,7 +5,7 @@ import RetryPolicies.RetryPolicy
 import StatusCodes.StatusCode
 
 import com.typesafe.scalalogging.StrictLogging
-import io.grpc.NameResolver.{Factory, Listener2}
+import io.grpc.NameResolver.Listener2
 import io.grpc.internal.{DnsNameResolver, DnsNameResolverProvider}
 import io.grpc.{EquivalentAddressGroup, LoadBalancer, NameResolver, NameResolverProvider, Status}
 
@@ -216,7 +216,7 @@ class BalancingNameResolverProvider private[grpc](
                                                    priority: Int = 5
                                                  ) extends NameResolverProvider with StrictLogging {
 
-  override def getDefaultScheme = schema
+  override def getDefaultScheme: String = schema
 
   override def newNameResolver(targetUri: URI, args: NameResolver.Args): NameResolver = {
     logger.debug(s"Creating resolver for $targetUri")
