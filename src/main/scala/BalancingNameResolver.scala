@@ -30,7 +30,7 @@ import scala.util.Random
  *            new BalancingNameResolverConfig("server1:10", "server2:11")    // The replicas to send RPC's to
  *              .withLoadBalancingPolicy(LoadBalancingPolicies.round_robin)  // Enable load balancing
  *              .withTimeoutMs(100)                                          // Set the overal timeout to 100ms
- *              .withServiceName("grpc.testing.SimpleService")                 // Configure the name of the service
+ *              .withServiceName("grpc.testing.SimpleService")               // Configure the name of the service
  *              .withRetryPolicy(RetryPolicies.hedge)                        // Enable hedging (speculative retries)
  *              .withMaxAttempts(4)                                          // Set maximum number of requests to 4
  *              .withDelayMs(10)                                             // Configure first hedged call after 10 ms
