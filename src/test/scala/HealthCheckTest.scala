@@ -1,6 +1,8 @@
 package org.jocker.grpc.loadbalancer
 
+import io.grpc.health.v1.HealthCheckResponse.ServingStatus
 import io.grpc.health.v1.{HealthCheckRequest, HealthCheckResponse, HealthGrpc}
+import io.grpc.protobuf.services.HealthStatusManager
 import io.grpc.stub.StreamObserver
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -12,9 +14,9 @@ class HealthCheckTest extends AnyFlatSpec with SimpleServiceTests {
       resolverConfig = configWithHealthChecks,
       expectPorts = testPorts.filterNot(_ % 2 == 0),
       healthCheckFactory = port => if (port % 2 == 0) {
-        wrapHealthCheck(() => HealthCheckResponse.ServingStatus.NOT_SERVING)
+        serviceWithConstantHealth(ServingStatus.NOT_SERVING)
       } else {
-        wrapHealthCheck(() => HealthCheckResponse.ServingStatus.SERVING)
+        serviceWithConstantHealth(ServingStatus.SERVING)
       })
   }
 
@@ -29,8 +31,14 @@ class HealthCheckTest extends AnyFlatSpec with SimpleServiceTests {
           HealthCheckResponse.ServingStatus.SERVING
         })
       } else {
-        wrapHealthCheck(() => HealthCheckResponse.ServingStatus.SERVING)
+        serviceWithConstantHealth(ServingStatus.SERVING)
       })
+  }
+
+  private def serviceWithConstantHealth(status: ServingStatus) = {
+    val manager = new HealthStatusManager()
+    manager.setStatus(serviceName, status)
+    manager.getHealthService
   }
 
   private def wrapHealthCheck(checker: () => HealthCheckResponse.ServingStatus): HealthGrpc.HealthImplBase = {

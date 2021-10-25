@@ -11,7 +11,7 @@ Example usage is as follows:
 val conf = new BalancingNameResolverConfig("server1:10", "server2:11")    // The replicas to send RPC's to
     .withLoadBalancingPolicy(LoadBalancingPolicies.round_robin)           // Enable load balancing
     .withTimeoutMs(100)                                                   // Set the overall timeout to 100ms
-    .withServiceName("grpc.testing.SimpleService")                        // Configure the name of the service (must match service definition in protobuf)
+    .withService[SimpleServiceGrpc]                                       // Sets the name of the service 
     .withRetryPolicy(RetryPolicies.hedge)                                 // Enable hedging (speculative retries)
     .withMaxAttempts(4)                                                   // Set maximum number of requests to 4
     .withDelayMs(10)                                                      // Configure first hedged call after 10 ms

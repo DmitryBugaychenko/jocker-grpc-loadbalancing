@@ -1,7 +1,7 @@
 package org.jocker.grpc.loadbalancer
 
 import io.grpc.health.v1.HealthGrpc
-import io.grpc.{ManagedChannel, NameResolverRegistry, Status}
+import io.grpc.{BindableService, ManagedChannel, NameResolverRegistry, Status}
 import io.grpc.netty.shaded.io.grpc.netty.{NettyChannelBuilder, NettyServerBuilder}
 import io.grpc.stub.StreamObserver
 import io.grpc.testing.protobuf.SimpleServiceGrpc.{SimpleServiceBlockingStub, SimpleServiceImplBase}
@@ -18,7 +18,7 @@ trait SimpleServiceTests extends Matchers with TimeLimits {
 
   val configWithLoadBalancing = new BalancingNameResolverConfig(testPorts.map(x => s"localhost:$x").toSeq: _*)
     .withLoadBalancingPolicy(LoadBalancingPolicies.round_robin)
-    .withServiceName("grpc.testing.SimpleService")
+    .withService[SimpleServiceGrpc]
 
 
   val configWithRetries = configWithLoadBalancing
@@ -70,22 +70,20 @@ trait SimpleServiceTests extends Matchers with TimeLimits {
                     serviceFactory: Int => SimpleServiceImplBase,
                     resolverConfig: BalancingNameResolverConfig,
                     expectPorts: Set[Int],
-                    healthCheckFactory: Int => HealthGrpc.HealthImplBase = _ => null): Unit = {
+                    healthCheckFactory: Int => BindableService = _ => null): Unit = {
 
     val services = testPorts.flatMap(port => {
-      val service = serviceFactory(port)
-      if (service != null) {
+      val services = Seq(Option(serviceFactory(port)), Option(healthCheckFactory(port))).flatten
+      if (services.nonEmpty) {
         val builder = NettyServerBuilder
           .forPort(port)
-          .addService(service)
 
-        val healthCheckService = healthCheckFactory(port)
-        if (healthCheckService != null) {
-          builder.addService(healthCheckService)
-        }
+        services.foreach(builder.addService)
 
-        Seq(builder.build().start())
-      } else Seq()
+        Some(builder.build().start())
+      } else {
+        None
+      }
     })
 
     try {

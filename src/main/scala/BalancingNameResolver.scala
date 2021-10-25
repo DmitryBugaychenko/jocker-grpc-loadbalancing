@@ -13,6 +13,7 @@ import java.net.URI
 import java.util
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.reflect.ClassTag
 import scala.util.Random
 
 /**
@@ -30,7 +31,7 @@ import scala.util.Random
  *            new BalancingNameResolverConfig("server1:10", "server2:11")    // The replicas to send RPC's to
  *              .withLoadBalancingPolicy(LoadBalancingPolicies.round_robin)  // Enable load balancing
  *              .withTimeoutMs(100)                                          // Set the overal timeout to 100ms
- *              .withServiceName("grpc.testing.SimpleService")               // Configure the name of the service
+ *              .withService[SimpleServiceGrpc]                              // Configure the name of the service
  *              .withRetryPolicy(RetryPolicies.hedge)                        // Enable hedging (speculative retries)
  *              .withMaxAttempts(4)                                          // Set maximum number of requests to 4
  *              .withDelayMs(10)                                             // Configure first hedged call after 10 ms
@@ -86,6 +87,10 @@ case class BalancingNameResolverConfig
   def withTimeoutMs(timeoutMs: Int): BalancingNameResolverConfig =
     copy(timeoutMs = timeoutMs)
 
+  def withService[T](implicit cls: ClassTag[T]): BalancingNameResolverConfig = {
+    withServiceName(cls.runtimeClass.getField("SERVICE_NAME").get(null).toString)
+  }
+
   def withServiceName(serviceName: String): BalancingNameResolverConfig =
     copy(serviceName = serviceName)
 
@@ -118,6 +123,10 @@ case class BalancingNameResolverConfig
   def withPriority(priority: Int) : BalancingNameResolverConfig =
     copy(priority = priority)
 
+  /**
+   * @return Service configuration map as defined at
+   *         https://github.com/grpc/proposal/blob/master/A6-client-retries.md#integration-with-service-config
+   */
   def toMap: Option[util.Map[String, Object]] = {
     val result = new util.HashMap[String, Object]()
 
@@ -127,6 +136,7 @@ case class BalancingNameResolverConfig
     }
 
     if (serviceName.nonEmpty) {
+      // See https://github.com/grpc/grpc-proto/blob/master/grpc/service_config/service_config.proto
       val serviceConfig = new util.HashMap[String, Object]()
 
       serviceConfig.put("name", List(
@@ -243,7 +253,6 @@ class BalancingNameResolverProvider private[grpc](
       val knownAddresses = new mutable.HashSet[EquivalentAddressGroup]()
       var numResponses = 0
 
-
       override def getServiceAuthority: String = targetUri.getAuthority
 
       override def start(listener: NameResolver.Listener2): Unit = delegates.foreach(_.start(new Listener2 {
@@ -260,14 +269,6 @@ class BalancingNameResolverProvider private[grpc](
             logger.debug(s"Reporting the final result ${addresses.mkString(",")}")
             // Randomize replicas for smother balance
             val builder = resolutionResult.toBuilder.setAddresses(Random.shuffle(addresses.toSeq).asJava)
-
-            config.foreach(x => {
-              val healthCheck = x.get("healthCheckConfig")
-              builder.setAttributes(
-                resolutionResult.getAttributes.toBuilder.set(
-                  LoadBalancer.ATTR_HEALTH_CHECKING_CONFIG, healthCheck.asInstanceOf[java.util.Map[String, _]])
-                  .build())
-            })
 
             parsedConfig.foreach(builder.setServiceConfig)
 
